@@ -85,4 +85,12 @@ Prerequisites
          The local directory in which the files should be copied is
          then /var/www/... something of your choosing. This is also
          configured in ansible/group_vars/all.
+      7. To speed up repeated DevStack deployments you can use APT
+         and PIP caches. If you have a machine in your network on which
+         those caches are installed, you can specify it in group_vars/all.
+         Set the 'use_cache' variable to true. If you do not wish to use
+         a cache or don't have one available yet, set this variable to
+         false.
+
+
 
