@@ -1,0 +1,11 @@
+localhost              ansible_connection=local
+
+[cluster]
+
+[controller]
+
+[compute]
+
+[compute:vars]
+#controller_ip_addr=10.5.5.6
+

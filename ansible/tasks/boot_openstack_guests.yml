@@ -1,0 +1,88 @@
+# Copyright 2014 Cisco Systems, Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+#
+# @author: Juergen Brendel, Cisco Systems, Inc.
+
+# -----------------------------------------------------------------------------
+# Bring up some OpenStack guests.
+#
+# These are the machines on which we will deploy DevStack.
+# We bring up one controller and two compute nodes.
+#
+# Since Ansible needs to be able to login to those guests,
+# and since we can't easily switch Ansible to use the
+# specific network namespace to get to guests' private
+# addresses, we will also create public addresses for each
+# guest.
+#
+# The guest instances are recorded in the "openstack_guests"
+# list and their respective public IP addresses are in
+# "floating_ips".
+# -----------------------------------------------------------------------------
+
+---
+
+- name: Booting OpenStack guests
+  nova_compute:
+       state: present
+       login_username: "{{ openstack_username }}"
+       login_password: "{{ openstack_password }}"
+       login_tenant_name: "{{ openstack_tenantname }}"
+       name: "{{ cluster_id }}-{{ item }}"
+       image_id: "{{ openstack_image_id }}"
+       key_name: "{{ openstack_keyname }}"
+       wait_for: 60
+       flavor_id: "{{ openstack_flavor_id }}"
+       nics:
+         - net-id: "{{ openstack_internal_net_id }}"
+       meta:
+         hostname: "{{ cluster_id }}-{{ item }}"
+  register: openstack_guests
+  with_items:
+    - controller
+    - compute-1
+    - compute-2
+
+- name: Add floating IP addresses to guest instances
+  quantum_floating_ip:
+       state: present
+       login_username: "{{ openstack_username }}"
+       login_password: "{{ openstack_password }}"
+       login_tenant_name: "{{ openstack_tenantname }}"
+       network_name: "{{ openstack_external_net }}"
+       instance_name: "{{ cluster_id }}-{{ item }}"
+       internal_network_name: "{{ openstack_internal_net }}"
+  register: floating_ips
+  with_items:
+    - controller
+    - compute-1
+    - compute-2
+
+- name: Add all guests to the cluster group
+  add_host: hostname={{ item.public_ip }} groupname=cluster
+  with_items: floating_ips.results
+
+- name: Adding one guest instance to controller group
+  add_host: hostname={{ floating_ips.results[0].public_ip }} groupname=controller
+
+- name: Adding remaining guest instances to compute group
+  add_host: hostname={{ item.public_ip }} groupname=compute
+  with_items: floating_ips.results[1:]
+
+- name: Wait for SSH to come up
+  local_action: >
+    wait_for host={{ item.public_ip }} port=22
+             delay=10 timeout=320 state=started
+  with_items: floating_ips.results
+

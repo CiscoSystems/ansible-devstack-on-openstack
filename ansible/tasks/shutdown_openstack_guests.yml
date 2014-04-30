@@ -1,0 +1,68 @@
+# Copyright 2014 Cisco Systems, Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+#
+# @author: Juergen Brendel, Cisco Systems, Inc.
+
+# -----------------------------------------------------------------------------
+# Shutdown of OpenStack guests.
+#
+# This shuts down the guests on which we had installed DevStack
+# and is executed after a successful test run.
+# -----------------------------------------------------------------------------
+
+---
+
+#
+# Keeping this in for now.
+#
+# This apparently only removes the floating IPs from a guest instance,
+# but doesn't actually delete the floating IP. Doesn't look like there
+# is support for deleteing the IPs in Ansible for the time being.
+# Therefore, we will use a manual approach (further down) instead.
+#
+#- name: Remove floating IP addresses from guests
+#  quantum_floating_ip:
+#       state: absent
+#       login_username: {{ openstack_username }}
+#       login_password: {{ openstack_password }}
+#       login_tenant_name: {{ openstack_tenantname }}
+#       network_name: {{ openstack_external_net }}
+#       instance_name: "{{ cluster_id }}-{{ item }}"
+#       internal_network_name: {{ openstack_internal_net }}
+#  with_items:
+#    - controller
+#    - compute-1
+#    - compute-2
+
+#
+# It seems that there is currently no Ansible support yet to complete
+# delete a floating IP addresses. Therefore, we will do this manually.
+#
+- name: Delete floating IP addresses
+  shell:
+    neutron floatingip-delete {{ item.result.floatingip.id }}
+  with_items: floating_ips.results
+
+- name: Shutting down OpenStack guests
+  nova_compute:
+       state: absent
+       login_username: "{{ openstack_username }}"
+       login_password: "{{ openstack_password }}"
+       login_tenant_name: "{{ openstack_tenantname }}"
+       name: "{{ cluster_id }}-{{ item }}"
+  with_items:
+    - controller
+    - compute-1
+    - compute-2
+

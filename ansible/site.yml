@@ -1,0 +1,89 @@
+# Copyright 2014 Cisco Systems, Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+#
+# @author: Juergen Brendel, Cisco Systems, Inc.
+
+# -----------------------------------------------------------------------------
+#
+# The playbook for running tempest tests on a multi-node DevStack
+# cluster, which has been configured on top of our base OpenStack:
+#
+#            +------------------+
+#            | DevStack cluster |
+#            +------------------+
+#               |     |     |
+#             +----------------+
+#             | base OpenStack |
+#             +----------------+
+#
+# We are using the base OpenStack system to spin up DevStack clusters
+# on demand, for the purpose of running tempest tests.
+#
+# IMPORTANT! This Ansible playbook needs to be run on the controller
+#            host of the base OpenStack installation!
+#
+# Example:
+#
+#    $ ansible-playbook -v site.yml -i hosts
+#
+# The script returns an error (exit code 1) if anything went wrong throughout
+# the setup of the running of the tempest tests.
+#
+# These steps are taken:
+#
+#   1. Create a unique cluster ID (datetime plus random).
+#   2. Use Ansible's OpenStack modules to start three guests on the
+#      base OpenStack system.
+#   3. Connect these guests to the pre-existing networks and configure
+#      floating IP addresses for each guest.
+#   4. Perform basic system setup on each guest (install a couple of
+#      system packages, configure use of APT and PIP caches).
+#   5. Download and install DevStack, configure on guest as controller,
+#      the other two as compute hosts. The controller also acts as a
+#      third compute host.
+#   6. Run the tempest tests against the DevStack installation.
+#   7. Make the results available via a web server running on the controlle
+#      host of the base OpenStack controller.
+#
+# -----------------------------------------------------------------------------
+
+---
+
+#
+# Create a unique cluster ID: Fine frained date/time stamp plus random string.
+#
+# Use local environment and installation of various OpenStack client
+# tools, so that we can use the Ansible OpenStacl modules to bring
+# up the guests.
+#
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - include: tasks/get_unique_cluster_name.yml
+    - include: tasks/boot_openstack_guests.yml cluster_id={{ cluster_name.stdout }}
+
+#
+# Install DevStack on the guests and run tests.
+#
+- include: devstack_installation.yml cluster_id="{{ hostvars['localhost']['cluster_name']['stdout'] }}"
+
+#
+# After completion of the tests, shut down the guests and delete all floating
+# IP addresss that were assigned to them.
+#
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - include: tasks/shutdown_openstack_guests.yml cluster_id={{ cluster_name.stdout }}
+

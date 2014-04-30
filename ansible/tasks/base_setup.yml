@@ -1,0 +1,88 @@
+# Copyright 2014 Cisco Systems, Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+#
+# @author: Juergen Brendel, Cisco Systems, Inc.
+
+# -----------------------------------------------------------------------------
+# Playbook to setup basic system configuration, such as users, basic
+# system packages and use of APT and PIP caches (if so specified).
+# -----------------------------------------------------------------------------
+
+---
+
+#
+# Ensure user and group exist. The 'ubuntu' user comes with the
+# operating system...
+#
+- name: Create {{ STACK_USER }} user...
+  user: >
+      name={{ STACK_USER }}
+      state=present
+      shell=/bin/bash
+      groups="sudo"
+
+#
+# Setup caches for APT and PIP
+#
+- name: configure local APT cache settings
+  template: >
+      src={{ LOCAL_TEMPLATE_DIR }}/01proxy.j2
+      dest=/etc/apt/apt.conf.d/01proxy
+      owner=root group=root mode=644
+  when: use_cache
+
+- name: write PIP cache config for root
+  file: path=/root/.pip state=directory 
+  when: use_cache
+
+- template: >
+      src={{ LOCAL_TEMPLATE_DIR }}/pip.conf.j2
+      dest=/root/.pip/pip.conf
+      owner=root group=root group=root mode=644
+  when: use_cache
+
+- name: write PIP cache config for stack user
+  file: >
+      path={{ STACK_USER_HOME }}/.pip
+      state=directory
+      owner={{ STACK_USER }}
+      group={{ STACK_USER }}
+  when: use_cache
+
+- template: >
+      src={{ LOCAL_TEMPLATE_DIR }}/pip.conf.j2
+      dest={{ STACK_USER_HOME }}/.pip/pip.conf
+      owner={{ STACK_USER }} group={{ STACK_USER }} mode=644
+  when: use_cache
+
+- name: updating the system                                                             
+  apt: update_cache=yes cache_valid_time=86400                                          
+
+- name: reinstalling the language pack
+  command: apt-get -y install --reinstall language-pack-en
+
+#
+# Installation of necessary software packages
+#
+- name: Install necessary packages
+  apt: pkg={{ item }} state=present
+  with_items:
+      - openvswitch-switch
+      - git-core
+      - python-argparse
+      - cloud-init
+      - python-psutil
+      - python-pip
+      - python-dev
+

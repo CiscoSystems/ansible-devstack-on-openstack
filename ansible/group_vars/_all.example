@@ -1,0 +1,205 @@
+# Copyright 2014 Cisco Systems, Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+#
+# @author: Juergen Brendel, Cisco Systems, Inc.
+
+# -----------------------------------------------------------------------------
+# Variables for the temporary tempest multi-node test cluster.
+#
+# Many of these settings will have to be adjusted to your needs. Please read
+# through all the parameters and change them as needed.
+#
+# After you have made your changes, save the file as 'group_vars/all'.
+# -----------------------------------------------------------------------------
+
+---
+
+#
+# -----------------------------------------------------------------------------
+# EDIT THE SETTINGS IN THIS SECTION...
+# -----------------------------------------------------------------------------
+#
+
+# Credentials for base OpenStack
+#
+# Provide the information related to the base OpenStack cluster. Aside from
+# the admin user and password and tenantname, the networks are particularly
+# interesting: There should be an external network from which the floating
+# IP addresses are chosen, as well as an internal network. The names of those
+# two networks needs to be provided, as well as the ID of the internal net.
+#
+# The guests, which are created and on which DevStack is going to be installed,
+# will be connected to those networks.
+#
+# In addition, the ID of the image that should be used for the guests should
+# be defined, along with the flavor ID for the guest instances.
+#
+# Also make sure a keypair has been created and registered ahead of time.
+# The name of the key needs to be specified here.
+#
+openstack_username:              admin
+openstack_password:              "some password"
+openstack_tenantname:            openstack
+openstack_external_net:          ext-net
+openstack_internal_net:          demo-net
+openstack_internal_net_id:       bf12af4e-d707-49f7-b353-980e1f6520a3
+openstack_image_id:              9e00e9de-f538-44a2-933e-1c1ccecd0a32
+openstack_flavor_id:             3
+openstack_keyname:               my_key
+
+#
+# Tunable parameters
+#
+# Determine which DevStack commit to use.
+# Determine which tunneling type should be used.
+#
+DEVSTACK_VERSION:                master
+TUNNEL_TYPE:                     gre
+
+#
+# For the Ansible connection to the host
+#
+# The 'ubuntu' user is created by default with Ubuntu images. Ansible also
+# needs to know the PEM file it can use to SSH into those instances.
+#
+ansible_connection:              ssh
+ansible_ssh_user:                ubuntu
+ansible_ssh_private_key_file:    /my_key.pem
+
+#
+# Tell any guests to use an apt and pip cache
+#
+# You can improve the setup speed of your DevStack cluster by utilizing
+# APT and PIP caches. If you have one of those in your network, please
+# specify the IP address and ports and set 'use_cache' to true. If you
+# don't want to use a cache, set 'use_cache' to false.
+#
+use_cache:                       true
+cache_ip_addr:                   "10.0.101.21"
+cache_apt_port:                  3142
+cache_pip_port:                  3141
+
+#
+# Directory in which tempest and stack.sh result logs should be stored
+# on the local (!) server, i.e. the server on which Ansible runs. This
+# is assumed to be a server with a public IP, so that these logs can be
+# made avilable to the outside.
+#
+# You should have a web server running on your base OpenStack controller
+# host. This setting here determines where the results of the test run
+# are copied to, so that the web server can provide access to them.
+#
+LOCAL_TEST_RESULT_DIRECTORY:     "/var/www/results/"
+
+#
+# Result server URL. This is the public URL on which the web server
+# can be reached.
+#
+RESULT_URL:                      "http://<your base OpenStack controller host>/results"
+
+
+#
+# -----------------------------------------------------------------------------
+# THESE SETTINGS CAN PROBABLY (!) BE LEFT AS THEY ARE...
+#
+# But have a look at them anyway, just in case...
+# -----------------------------------------------------------------------------
+#
+
+#
+# Git repository for DevStack
+#
+GIT_REPO_URL:                    git://github.com/openstack-dev/devstack.git
+
+#
+# Stack user: This is the account used to install devstack
+# and to run stack.sh. We just use the standard 'ubuntu' account
+# that is created in each Ubuntu instance. Of course, if you are not using
+# Ubuntu guests, you probably might have to change this.
+#
+STACK_USER:                      ubuntu
+STACK_USER_HOME:                 /home/{{ STACK_USER }}
+
+
+#
+# -----------------------------------------------------------------------------
+# THESE SETTINGS CAN BE LEFT AS THEY ARE...
+# -----------------------------------------------------------------------------
+#
+
+#
+# Target directory on DevStack controller to which we copy our stuff.
+#
+SCRIPT_DIR:                      "{{ STACK_USER_HOME }}/tempest_run"
+
+#
+# Workspace directory where local files for the DevStack installation
+# and tempest test run are stored.
+#
+WORKSPACE:                       "{{ SCRIPT_DIR }}/workspace"
+
+#
+# Directory to which the DevStack repo will be downloaded
+#
+DEVSTACK_DOWNLOAD_DIR:           "{{ WORKSPACE }}/devstack"
+
+#
+# Directory to which stack.sh will install DevStack
+#
+DEVSTACK_DIR:                    /opt/stack
+NEUTRON_DIR:                     "{{ DEVSTACK_DIR }}/neutron"
+TEMPEST_DIR:                     "{{ DEVSTACK_DIR }}/tempest"
+
+#
+# Error log file for stack.sh
+#
+STACK_SH_LOG:                    "{{ WORKSPACE }}/stack_sh_err.log"
+
+#
+# Location of tempest result log
+#
+TEMPEST_LOG:                     "{{ WORKSPACE }}/tempest.log"
+
+#
+# Local directory in which the various scripts are
+# located, which we run on the devstack controller.
+# These are copied to {{ TARGET_DIR }}.
+#
+LOCAL_FILES_DIR:                 files
+
+#
+# Local directory in which we store template files.
+#
+LOCAL_TEMPLATE_DIR:              templates
+
+#
+# -----------------------------------------------------------------------------
+# THESE SETTINGS ARE FOR INTEGRATION WITH JENKINS AND ARE CURRENTLY NOT USED
+# FOR ANYTHING.
+# -----------------------------------------------------------------------------
+#
+
+#
+# Environment variables for the test script run.
+#
+RUN_ENV:
+    SCRIPT_HOME:            "{{ SCRIPT_DIR }}"
+    WORKSPACE:              "{{ WORKSPACE }}"
+    GERRIT_NAME:            "https://review.openstack.org/"
+    GERRIT_PROJECT:         "openstack/neutron"
+    GERRIT_REFSPEC:         "refs/changes/54/78554/1"
+    GERRIT_CHANGE_NUMBER:   78554
+    GERRIT_PATCHSET_NUMBER: 1
+    BUILD_URL:              "build URL"
+
